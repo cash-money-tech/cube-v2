@@ -1,0 +1,131 @@
+import pygame
+import math
+import colorsys
+
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Rotating 3D Cube with Rainbow Colors")
+
+# Cube vertices (8 points of a cube)
+vertices = [
+    [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],  # Back square
+    [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]  # Front square
+]
+
+# Cube edges (connecting the vertices)
+edges = [
+    [0, 1], [1, 2], [2, 3], [3, 0],  # Back square edges
+    [4, 5], [5, 6], [6, 7], [7, 4],  # Front square edges
+    [0, 4], [1, 5], [2, 6], [3, 7]  # Connecting the back to the front
+]
+
+
+# Rotation matrices for X, Y, and Z axes
+def rotate_x(angle):
+    return [
+        [1, 0, 0],
+        [0, math.cos(angle), -math.sin(angle)],
+        [0, math.sin(angle), math.cos(angle)]
+    ]
+
+
+def rotate_y(angle):
+    return [
+        [math.cos(angle), 0, math.sin(angle)],
+        [0, 1, 0],
+        [-math.sin(angle), 0, math.cos(angle)]
+    ]
+
+
+def rotate_z(angle):
+    return [
+        [math.cos(angle), -math.sin(angle), 0],
+        [math.sin(angle), math.cos(angle), 0],
+        [0, 0, 1]
+    ]
+
+
+# Projection function
+def project(x, y, z):
+    factor = 200 / (z + 5)
+    x_proj = x * factor + WIDTH // 2
+    y_proj = -y * factor + HEIGHT // 2
+    return (x_proj, y_proj)
+
+
+# Function to generate rainbow colors smoothly
+def get_rainbow_color(hue):
+    # Convert HSV to RGB
+    return tuple(int(i * 255) for i in colorsys.hsv_to_rgb(hue, 1.0, 1.0))
+
+
+# Main loop
+def main():
+    clock = pygame.time.Clock()
+    running = True
+    angle_x = 0
+    angle_y = 0
+    angle_z = 0
+    hue = 0  # Starting hue for rainbow
+    hue_step = 0.005  # Control the speed of the color change
+
+    while running:
+        screen.fill((0, 0, 0))  # Clear the screen
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # Apply rotations
+        rotation_matrix_x = rotate_x(angle_x)
+        rotation_matrix_y = rotate_y(angle_y)
+        rotation_matrix_z = rotate_z(angle_z)
+
+        rotated_vertices = []
+        for vertex in vertices:
+            # Apply rotation in the order: Z, Y, X
+            x, y, z = vertex
+            # Rotate around Z
+            x, y, z = [sum(x * r for x, r in zip(vertex, row)) for row in zip(*rotation_matrix_z)]
+            # Rotate around Y
+            x, y, z = [sum(x * r for x, r in zip([x, y, z], row)) for row in zip(*rotation_matrix_y)]
+            # Rotate around X
+            x, y, z = [sum(x * r for x, r in zip([x, y, z], row)) for row in zip(*rotation_matrix_x)]
+
+            rotated_vertices.append([x, y, z])
+
+        # Project the 3D points to 2D
+        projected_vertices = [project(x, y, z) for x, y, z in rotated_vertices]
+
+        # Draw the edges of the cube with rainbow colors
+        for i, edge in enumerate(edges):
+            start, end = edge
+            color = get_rainbow_color(hue)  # Get the color based on hue
+            pygame.draw.line(screen, color, projected_vertices[start], projected_vertices[end], 2)
+
+        # Update the display
+        pygame.display.flip()
+
+        # Update angles for rotation
+        angle_x += 0.01
+        angle_y += 0.02
+        angle_z += 0.03
+
+        # Update hue for the rainbow effect (wraps around)
+        hue += hue_step
+        if hue > 1.0:
+            hue = 0.0  # Reset the hue to 0 after completing the cycle
+
+        # Control the frame rate
+        clock.tick(60)
+
+    pygame.quit()
+
+
+# Run the program
+if __name__ == "__main__":
+    main()
